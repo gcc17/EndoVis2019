@@ -32,7 +32,7 @@ class TestDataset(Dataset):
 
 
 class TrainDataset(Dataset):
-    def __init__(self, feature_name, feature_type='rbg', length=512):
+    def __init__(self, feature_name, feature_type='rgb', length=512):
 
         self.feature_name = feature_name
         self.feature_type = feature_type
@@ -53,14 +53,15 @@ class TrainDataset(Dataset):
 
 def main():
     print('Test begin')
-    name_test = ['Hei-Chole1-rgb.npz', 'Hei-Chole2-rgb.npz']
-    TestDataset(name_test)
+    name_test = ['Hei-Chole1-flow.npz', 'Hei-Chole2-flow.npz']
+    TestDataset(name_test, 'flow')
     
     print('Train begin')
     name_train = ['Hei-Chole4-rgb.npz', 'Hei-Chole3-rgb.npz']
-    TrainDataset(name_train)
+    TrainDataset(name_train, 'rgb', 99999)
     
     print('self\'s test done')
     return
 
 main()
+
