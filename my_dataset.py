@@ -8,14 +8,16 @@
 import numpy as np
 from torch.utils.data import Dataset
 
-from utils import get_test_cases, get_train_cases
+from utils import get_test_cases, get_train_cases, get_gt
 
 class TestDataset(Dataset):
     def __init__(self, feature_name, feature_type='rgb', length=512):
-
+        
         self.feature_name = feature_name
         self.feature_type = feature_type
         self.test_cases = get_test_cases(feature_name, feature_type, length)
+        for i in range(len(feature_name)):
+            get_gt(feature_name[i])
 
     def __len__(self):
         return len(self.test_cases)
@@ -24,7 +26,7 @@ class TestDataset(Dataset):
 
         return_dict = {}
         return_dict['idx'] = np.array(idx)
-        return_dict['gt_score'] = get_gt(idx)
+        return_dict['gt_score'] = get_gt(self.feature_name[idx])
         return_dict['data'] = np.array(self.test_cases[idx])
         return_dict['is_test_case'] = 1
 
@@ -45,7 +47,7 @@ class TrainDataset(Dataset):
 
         return_dict = {}
         return_dict['idx'] = np.array(idx)
-        return_dict['gt_score'] = get_gt(idx)
+        return_dict['gt_score'] = get_gt(self.feature_name[idx])
         return_dict['data'] = np.array(self.train_cases[idx])
         return_dict['is_train_case'] = 1
 
@@ -58,10 +60,11 @@ def main():
     
     print('Train begin')
     name_train = ['Hei-Chole4-rgb.npz', 'Hei-Chole3-rgb.npz']
-    TrainDataset(name_train, 'rgb', 99999)
+    TrainDataset(name_train, 'rgb')
     
     print('self\'s test done')
     return
 
 main()
+
 

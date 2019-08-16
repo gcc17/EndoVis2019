@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
 #from config import *
+import pandas as pd
 
 def get_test_cases(feature_name_list, feature_type, length):
     feature_dir = '../i3d'
@@ -49,9 +50,18 @@ def get_train_cases(feature_name_list, feature_type, length):
         train_cases.append(feature)
     return train_cases
 
-def get_gt():
+def get_gt(feature_name):
     gt_cases = []
-
+    tmp = feature_name.split('-')
+    name = '-'.join([tmp[0], tmp[1]]) + '_'
+    gt_dir = '../../Annotations/'
+    gt_paths = [os.path.join(gt_dir, i) for i in os.listdir(gt_dir) if (i.endswith('.csv') and i.startswith(name))]
+    for gt_path in gt_paths:
+        print(gt_path)
+        gt_data = pd.read_csv(gt_path)
+        print(gt_data.shape)
+        #print(type(gt_data))
+        gt_cases.append(gt_data)
     return gt_cases
 
 def get_phase_error(pred_phase, gt_phase):
