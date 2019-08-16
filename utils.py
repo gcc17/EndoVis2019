@@ -7,18 +7,20 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
-from config import *
+#from config import *
 
-feature_dir = './i3d/rbg'
+feature_dir = '../i3d/rgb'
 #feature_tmp = np.load('./i3d/rgb/Hei-Chole1-rgb.npz')
 
 def get_test_cases(feature_name_list, feature_type='rgb', length=512):
     test_cases = []
     for name_item in feature_name_list:
         feature_dic = np.load(os.path.join(feature_dir, name_item))
-        print(feature_dic['video_name'])
-        feature = list(feature_dic['feature'])
+        print(feature_dic['video_name'], ' for test')
+        feature = feature_dic['feature'].tolist()
+        feature = feature[0]
         if (len(feature) < length):
+            print('video length is ', len(feature))
             print('video is shorter than ', length)
             exit()
         else:
@@ -33,14 +35,16 @@ def get_train_cases(feature_name_list, feature_type='rgb', length=512):
     train_cases = []
     for name_item in feature_name_list:
         feature_dic = np.load(os.path.join(feature_dir, name_item))
-        print(feature_dic['video_name'])
+        print(feature_dic['video_name'], ' for train')
         feature = list(feature_dic['feature'])
+        feature = feature[0]
         if (len(feature) < length):
+            print('video length is ', len(feature))
             print('video is shorter than ', length)
             exit()
         else:
             start_frame = random.randint(0, len(feature) - length)
-        feature = feature[start_frame : start_frame+ feature]
+        feature = feature[start_frame : (start_frame + length)]
         train_cases.append(feature)
     return train_cases
 
@@ -59,7 +63,7 @@ def get_phase_error(pred_phase, gt_phase):
 def get_instrument_error(pred_instrument, gt_instrument):
     criterion = nn.MultiLabelSoftMarginLoss()
     pred_instrument = torch.autograd.Variable(torch.FloatTensor([pred_instrument]))
-    gt_instrument = torch.autograd.Variable(torch.FloatTensor([gt_instrument])
+    gt_instrument = torch.autograd.Variable(torch.FloatTensor([gt_instrument]))
     loss = criterion(pred_instrument, gt_instrument)
     return loss.mean()
 
