@@ -7,18 +7,19 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
-from config import *
+#from config import *
 
-feature_dir = './i3d/rbg'
-#feature_tmp = np.load('./i3d/rgb/Hei-Chole1-rgb.npz')
-
-def get_test_cases(feature_name_list, feature_type='rgb', length=512):
+def get_test_cases(feature_name_list, feature_type, length):
+    feature_dir = '../i3d'
+    feature_dir = os.path.join(feature_dir, feature_type)
     test_cases = []
     for name_item in feature_name_list:
-        feature_dic = np.load(os.path.join(feature_dir, name_item))
-        print(feature_dic['video_name'])
-        feature = list(feature_dic['feature'])
+        feature_npz = np.load(os.path.join(feature_dir, name_item))
+        print(feature_dir + '/' + name_item, ' for test')
+        feature = feature_npz['feature'].tolist()
+        feature = feature[0]
         if (len(feature) < length):
+            print('video length is ', len(feature))
             print('video is shorter than ', length)
             exit()
         else:
@@ -29,18 +30,22 @@ def get_test_cases(feature_name_list, feature_type='rgb', length=512):
         test_cases.append(flips_feature)
     return test_cases
 
-def get_train_cases(feature_name_list, feature_type='rgb', length=512):
+def get_train_cases(feature_name_list, feature_type, length):
+    feature_dir = '../i3d'
+    feature_dir = os.path.join(feature_dir, feature_type) 
     train_cases = []
     for name_item in feature_name_list:
-        feature_dic = np.load(os.path.join(feature_dir, name_item))
-        print(feature_dic['video_name'])
-        feature = list(feature_dic['feature'])
+        feature_npz = np.load(os.path.join(feature_dir, name_item))
+        print(feature_dir + '/' + name_item, ' for train')
+        feature = list(feature_npz['feature'])
+        feature = feature[0]
         if (len(feature) < length):
+            print('video length is ', len(feature))
             print('video is shorter than ', length)
             exit()
         else:
             start_frame = random.randint(0, len(feature) - length)
-        feature = feature[start_frame : start_frame+ feature]
+        feature = feature[start_frame : (start_frame + length)]
         train_cases.append(feature)
     return train_cases
 
@@ -59,7 +64,7 @@ def get_phase_error(pred_phase, gt_phase):
 def get_instrument_error(pred_instrument, gt_instrument):
     criterion = nn.MultiLabelSoftMarginLoss()
     pred_instrument = torch.autograd.Variable(torch.FloatTensor([pred_instrument]))
-    gt_instrument = torch.autograd.Variable(torch.FloatTensor([gt_instrument])
+    gt_instrument = torch.autograd.Variable(torch.FloatTensor([gt_instrument]))
     loss = criterion(pred_instrument, gt_instrument)
     return loss.mean()
 

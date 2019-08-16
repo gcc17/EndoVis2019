@@ -10,10 +10,8 @@ from torch.utils.data import Dataset
 
 from utils import get_test_cases, get_train_cases
 
-length = 512
-
 class TestDataset(Dataset):
-    def __init__(self, feature_name, feature_type):
+    def __init__(self, feature_name, feature_type='rgb', length=512):
 
         self.feature_name = feature_name
         self.feature_type = feature_type
@@ -34,7 +32,7 @@ class TestDataset(Dataset):
 
 
 class TrainDataset(Dataset):
-    def __init__(self, feature_name, feature_type):
+    def __init__(self, feature_name, feature_type='rgb', length=512):
 
         self.feature_name = feature_name
         self.feature_type = feature_type
@@ -52,4 +50,18 @@ class TrainDataset(Dataset):
         return_dict['is_train_case'] = 1
 
         return return_dict
+
+def main():
+    print('Test begin')
+    name_test = ['Hei-Chole1-flow.npz', 'Hei-Chole2-flow.npz']
+    TestDataset(name_test, 'flow')
+    
+    print('Train begin')
+    name_train = ['Hei-Chole4-rgb.npz', 'Hei-Chole3-rgb.npz']
+    TrainDataset(name_train, 'rgb', 99999)
+    
+    print('self\'s test done')
+    return
+
+main()
 
