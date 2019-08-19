@@ -37,7 +37,7 @@ class TrainDataset(Dataset):
         return len(self.train_cases)
 
     def __getitem__(self, idx):
-
+      
         return_dict = {}
         return_dict['idx'] = np.array(idx)
         return_dict['gt_phase'], return_dict['gt_instrument'], return_dict['gt_action'], return_dict['gt_action_detailed'] = get_gt(self.feature_name[idx])
@@ -58,6 +58,4 @@ def main():
     print('self\'s test done')
     return
 
-main()
-
-
+#main()
