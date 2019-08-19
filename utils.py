@@ -1,14 +1,3 @@
-import numpy as np
-import os
-import torch
-import torch.nn as nn
-from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
-import subprocess
-from config import *
-import pandas as pd
-
 import os
 import torch
 import numpy as np
@@ -18,7 +7,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
-#from config import *
+from config import *
 import pandas as pd
 
 def get_test_cases(feature_name_list, feature_type, length):
@@ -74,6 +63,7 @@ def get_gt(feature_name):
         #print(type(gt_data))
         gt_cases.append(gt_data)
     return gt_cases
+
 
 def get_phase_error(pred_phase, gt_phase):
     # pred_phase: numpy, frames x 4
