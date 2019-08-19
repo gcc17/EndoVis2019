@@ -1,10 +1,3 @@
-#************************************************************************
-#    > File Name:     dataset.py
-#    > Author:        Guo_mq
-#    > Mail:          836918658@qq.com 
-#    > Created Time:  Thu 15 Aug 2019 10:55:20 AM CST
-#************************************************************************
-
 import numpy as np
 from torch.utils.data import Dataset
 
