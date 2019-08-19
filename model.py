@@ -62,18 +62,18 @@ class GRUNet(nn.Module):
         def forward(self, x):
 
             # x (batch, time_step, input_dim)
-        # h_state (n_layers, batch, hidden_dim)
-        # r_out (batch, time_step, hidden_dim)
+            # h_state (n_layers, batch, hidden_dim)
+            # r_out (batch, time_step, hidden_dim)
 
-        batch_size = x.shape[0]
-        frame_num = x.shape[1]
+            batch_size = x.shape[0]
+            frame_num = x.shape[1]
 
-        h_state = torch.zeros(1, batch_size,self.hidden_dim).cuda().float()
-        x, _ = self.base(x, h_state)
-
-        pred_phase = self.phase_pred_net(x)
-        pred_instrument = self.instrument_pred_net(x)
-        pred_action = self.action_pred_net(x)
+            h_state = torch.zeros(1, batch_size,self.hidden_dim).cuda().float()
+            x, _ = self.base(x, h_state)
+    
+            pred_phase = self.phase_pred_net(x)
+            pred_instrument = self.instrument_pred_net(x)
+            pred_action = self.action_pred_net(x)
 
         return pred_phase, pred_instrument, pred_action
 
@@ -121,29 +121,43 @@ class TCNNet(nn.Module):
                 TCNDecoder(16, 32)
                 )
 
-        self.head_score = nn.Sequential(
+        self.phase_branch = nn.Sequential(
+                nn.Linear(32, 16),
+                nn.ReLU(),
+                nn.Linear(16, 7)
+                )
+        
+        self.instrument_branch = nn.Sequential(
+                nn.Linear(32, 24),
+                nn.ReLU(),
+                nn.Linear(24, 21)
+                )
+        
+        self.action_branch = nn.Sequential(
                 nn.Linear(32, 8),
                 nn.ReLU(),
-                nn.Linear(8, 1)
+                nn.Linear(8, 4)
                 )
 
         def forward(self, x):
             x = self.base(x)
                     
             padding = 4 - (x.shape[1] % 4)
-            padding = padding % 4
-                                    
+            padding = padding % 4                        
             if padding != 0:
                 x = nn.functional.pad(x, (0, 0, 0, padding),mode='constant', value=0)
-            assert(x.shape[1] % 4 == 0)
-                
+            assert(x.shape[1] % 4 == 0)    
+            
             x = x.permute(0, 2, 1)
             x = self.middle(x)
             x = x.permute(0, 2, 1)
-                
+
             if padding != 0:
                 x = x[:, :-padding, :]
-            score = self.head_score(x)
             
-            return global_score, score, weight
+            phase = self.phase_branch(x)
+            instrument = self.instrument_branch(x)
+            action = self.action_branch(x)
+            
+            return phase, instrument, action
                                                                                                                                             
