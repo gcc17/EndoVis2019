@@ -176,7 +176,7 @@ if __name__ == '__main__':
                                                batch_size=batch_size,
                                                shuffle=True, drop_last=True)
     test_loader = torch.utils.data.DataLoader(test_dataset,
-                                              batch_size=batch_size,
+                                              batch_size=1,
                                               shuffle=False)
 
     train(model, train_loader, test_loader, naming, use_tf_log)
