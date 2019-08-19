@@ -14,7 +14,6 @@ import pdb
 
 locals().update(training_params)
 
-
 ######################
 
 
@@ -107,11 +106,8 @@ def train(model, train_loader, test_loader, naming, use_tf_log):
         pred_phase, pred_instrument, pred_action = model(feature)
         # 训练的时候loss该如何计算？输出维度为B×T×C，损失函数要求的输入为B×C
         loss_phase = phase_criterion(pred_phase, gt_phase)
-        loss_phase = loss_phase.mean()
         loss_instrument = instrument_criterion(pred_instrument, gt_instrument)
-        loss_instrument = loss_instrument.mean()
         loss_action = action_criterion(pred_action, gt_action)
-        loss_action = loss_action.mean()
         loss_total = loss_phase + loss_instrument + loss_action
 
         # print and save calculation
