@@ -9,10 +9,13 @@ from matplotlib import gridspec
 import subprocess
 from config import *
 
+i3d_time=16
+
 def get_test_cases(feature_name_list, feature_type, length):
     feature_dir = '../i3d'
     feature_dir = os.path.join(feature_dir, feature_type)
     test_cases = []
+    flips_nums = []
     for name_item in feature_name_list:
         feature_npz = np.load(os.path.join(feature_dir, name_item))
         print(feature_dir + '/' + name_item, ' for test')
@@ -24,40 +27,45 @@ def get_test_cases(feature_name_list, feature_type, length):
             exit()
         else:
             flips_num = len(feature) // length
+            flips_nums.append(flips_num)
         flips_feature = []
         for flips_id in range(flips_num):
             flips_feature.append(feature[flips_id * length : (flips_id + 1) * length])
         test_cases.append(flips_feature)
-    return test_cases
+    return test_cases, flips_nums
 
-def get_train_cases(feature_name_list, feature_type, length):
+
+def get_train_case(feature_name_list, feature_type, length):
+    name = feature_name_list[random.randint(0, len(feature_name_list) - 1)]
     feature_dir = '../i3d'
     feature_dir = os.path.join(feature_dir, feature_type)
-    train_cases = []
-    for name_item in feature_name_list:
-        feature_npz = np.load(os.path.join(feature_dir, name_item))
-        print(feature_dir + '/' + name_item, ' for train')
-        feature = list(feature_npz['feature'])
-        feature = feature[0]
-        if (len(feature) < length):
-            print('video length is ', len(feature))
-            print('video is shorter than ', length)
-            exit()
-        else:
-            start_frame = random.randint(0, len(feature) - length)
-        feature = feature[start_frame : (start_frame + length)]
-        train_cases.append(feature)
-    return train_cases
+    feature_npz = np.load(os.path.join(feature_dir, name))
+    print(feature_dir + '/' + name, ' for train')
+    feature = list(feature_npz['feature'])
+    feature = feature[0]
+    if (len(feature) < length):
+        print('video length is ', len(feature))
+        print('video is shorter than ', length)
+        exit()
+    else:
+        start_frame = random.randint(0, len(feature) - length)
+    data = feature[start_frame : (start_frame + length)]
+    return data, name, start_frame
 
 
-def get_gt(feature_name):
-    # gt_phase = []
-    # gt_instrument = []
-    # gt_action = []
-    # gt_action_detailed = []
+def get_test_gt(feature_name, flips_num, length):
+    gts = []
+    for i in range(flips_num):
+        gt = {}
+        gt['gt_phase'], gt['gt_instrument'], gt['gt_action'], gt['gt_action_detailed'] = get_train_gt(feature_name, i * length * i3d_time, length, times=i3d_time)
+        gts.append(gt)
+    return gts
+
+
+def get_train_gt(feature_name, frame, length, times=i3d_time):
     tmp = feature_name.split('-')
     name = '-'.join([tmp[0], tmp[1]]) + '_'
-    gt_dir = '../Annotations/'
+    gt_dir = '../../Annotations/'
     gt_paths = [os.path.join(gt_dir, i) for i in os.listdir(gt_dir) if (i.endswith('.csv') and i.startswith(name))]
     for gt_path in gt_paths:
         print(gt_path)
@@ -65,6 +73,7 @@ def get_gt(feature_name):
         tmp1 = np.loadtxt(gt_path, delimiter=",")
         tmp1 = np.array(tmp1)
         gt_data = tmp1[0:, 1:]
+        gt_data = gt_data[frame : frame + (times * length), 0:]
         if (gt_path.endswith('Phase.csv')):
             print('phase ', end='')
             print(gt_data.shape)

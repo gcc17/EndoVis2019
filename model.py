@@ -38,30 +38,30 @@ class GRUNet(nn.Module):
         self.hidden_dim = 32
         self.input_dim = input_dim
         self.base = nn.GRU(
-            input_size=input_dim,
-            hidden_size=self.hidden_dim,
-            num_layers=1,
-            batch_first=True
-        )
+                input_size=input_dim,
+                hidden_size=self.hidden_dim,
+                num_layers=1,
+                batch_first=True
+                )
         self.phase_pred_net = nn.Sequential(
-            nn.Linear(self.hidden_dim, 16),
-            nn.ReLU(),
-            nn.Linear(16, 7)
-        )
+                nn.Linear(self.hidden_dim, 16),
+                nn.ReLU(),
+                nn.Linear(16, 7)
+                )
         self.instrument_pred_net = nn.Sequential(
-            nn.Linear(self.hidden_dim, 24),
-            nn.ReLU(),
-            nn.Linear(24, 21)
-        )
+                nn.Linear(self.hidden_dim, 24),
+                nn.ReLU(),
+                nn.Linear(24, 21)
+                )
         self.action_pred_net = nn.Sequential(
-            nn.Linear(self.hidden_dim, 8),
-            nn.ReLU(),
-            nn.Linear(8, 4)
-        )
+                nn.Linear(self.hidden_dim, 8),
+                nn.ReLU(),
+                nn.Linear(8, 4)
+                )
 
-    def forward(self, x):
+        def forward(self, x):
 
-        # x (batch, time_step, input_dim)
+            # x (batch, time_step, input_dim)
         # h_state (n_layers, batch, hidden_dim)
         # r_out (batch, time_step, hidden_dim)
 
@@ -76,3 +76,74 @@ class GRUNet(nn.Module):
         pred_action = self.action_pred_net(x)
 
         return pred_phase, pred_instrument, pred_action
+
+
+####################### TCN #################################
+
+class TCNEncoder(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(TCNEncoder, self).__init__()
+
+        self.conv = nn.Conv1d(input_dim, output_dim, 3, padding=1)
+        self.relu = nn.ReLU()
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu(x)
+        x = self.pool(x)
+        return x
+
+class TCNDecoder(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(TCNDecoder, self).__init__()
+
+        self.upsample = nn.Upsample(scale_factor=2)
+        self.conv = nn.ConvTranspose1d(input_dim, output_dim, 3, padding=1)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.upsample(x)
+        x = self.conv(x)
+        x = self.relu(x)
+        return x
+
+class TCNNet(nn.Module):
+    def __init__(self, input_dim, dropout_rate):
+        super(TCNNet, self).__init__()
+        
+        self.base = EmbedModule(input_dim, 64, dropout_rate)
+
+        self.middle = nn.Sequential(
+                TCNEncoder(64, 16),
+                TCNEncoder(16, 4),
+                TCNDecoder(4, 16),
+                TCNDecoder(16, 32)
+                )
+
+        self.head_score = nn.Sequential(
+                nn.Linear(32, 8),
+                nn.ReLU(),
+                nn.Linear(8, 1)
+                )
+
+        def forward(self, x):
+            x = self.base(x)
+                    
+            padding = 4 - (x.shape[1] % 4)
+            padding = padding % 4
+                                    
+            if padding != 0:
+                x = nn.functional.pad(x, (0, 0, 0, padding),mode='constant', value=0)
+            assert(x.shape[1] % 4 == 0)
+                
+            x = x.permute(0, 2, 1)
+            x = self.middle(x)
+            x = x.permute(0, 2, 1)
+                
+            if padding != 0:
+                x = x[:, :-padding, :]
+            score = self.head_score(x)
+            
+            return global_score, score, weight
+                                                                                                                                            
