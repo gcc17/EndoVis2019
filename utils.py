@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
 from config import *
-import pandas as pd
 
 def get_test_cases(feature_name_list, feature_type, length):
     feature_dir = '../i3d'
@@ -50,19 +49,39 @@ def get_train_cases(feature_name_list, feature_type, length):
         train_cases.append(feature)
     return train_cases
 
+
 def get_gt(feature_name):
-    gt_cases = []
+    # gt_phase = []
+    # gt_instrument = []
+    # gt_action = []
+    # gt_action_detailed = []
     tmp = feature_name.split('-')
     name = '-'.join([tmp[0], tmp[1]]) + '_'
-    gt_dir = '../../Annotations/'
+    gt_dir = '../Annotations/'
     gt_paths = [os.path.join(gt_dir, i) for i in os.listdir(gt_dir) if (i.endswith('.csv') and i.startswith(name))]
     for gt_path in gt_paths:
         print(gt_path)
-        gt_data = pd.read_csv(gt_path)
-        print(gt_data.shape)
-        #print(type(gt_data))
-        gt_cases.append(gt_data)
-    return gt_cases
+        # gt_data = pd.read_csv(gt_path)
+        tmp1 = np.loadtxt(gt_path, delimiter=",")
+        tmp1 = np.array(tmp1)
+        gt_data = tmp1[0:, 1:]
+        if (gt_path.endswith('Phase.csv')):
+            print('phase ', end='')
+            print(gt_data.shape)
+            gt_phase = gt_data
+        elif (gt_path.endswith('Instrument.csv')):
+            print('instrument ', end='')
+            print(gt_data.shape)
+            gt_instrument = gt_data
+        elif (gt_path.endswith('Action.csv')):
+            print('action ', end='')
+            print(gt_data.shape)
+            gt_action = gt_data
+        elif (gt_path.endswith('Action_Detailed.csv')):
+            print('action_detailed ', end='')
+            print(gt_data.shape)
+            gt_action_detailed = gt_data
+    return gt_phase, gt_instrument, gt_action, gt_action_detailed
 
 
 def get_phase_error(pred_phase, gt_phase):
