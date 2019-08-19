@@ -19,7 +19,7 @@ class TestDataset(Dataset):
 
         return_dict = {}
         return_dict['idx'] = np.array(idx)
-        return_dict['gt_score'] = get_gt(self.feature_name[idx])
+        return_dict['gt_phase'], return_dict['gt_instrument'], return_dict['gt_action'] = get_gt(self.feature_name[idx])
         return_dict['data'] = np.array(self.test_cases[idx])
         return_dict['is_test_case'] = 1
 
@@ -34,13 +34,13 @@ class TrainDataset(Dataset):
         self.train_cases = get_train_cases(feature_name, feature_type, length)
 
     def __len__(self):
-        return len(self.test_cases)
+        return len(self.train_cases)
 
     def __getitem__(self, idx):
 
         return_dict = {}
         return_dict['idx'] = np.array(idx)
-        return_dict['gt_score'] = get_gt(self.feature_name[idx])
+        return_dict['gt_phase'], return_dict['gt_instrument'], return_dict['gt_action'], return_dict['gt_action_detailed'] = get_gt(self.feature_name[idx])
         return_dict['data'] = np.array(self.train_cases[idx])
         return_dict['is_train_case'] = 1
 
