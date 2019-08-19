@@ -42,26 +42,13 @@ class TrainDataset(Dataset):
         return len(self.test_cases)
 
     def __getitem__(self, idx):
-
         return_dict = {}
         return_dict['idx'] = np.array(idx)
-        return_dict['gt_score'] = get_gt(idx)
+        return_dict['phase'], return_dict['instrument'], return_dict[
+            'action'], return_dict['action_detailed'] = get_gt(
+            self.feature_name[idx])
         return_dict['data'] = np.array(self.train_cases[idx])
         return_dict['is_train_case'] = 1
 
         return return_dict
-
-def main():
-    print('Test begin')
-    name_test = ['Hei-Chole1-flow.npz', 'Hei-Chole2-flow.npz']
-    TestDataset(name_test, 'flow')
-    
-    print('Train begin')
-    name_train = ['Hei-Chole4-rgb.npz', 'Hei-Chole3-rgb.npz']
-    TrainDataset(name_train, 'rgb', 99999)
-    
-    print('self\'s test done')
-    return
-
-main()
 
