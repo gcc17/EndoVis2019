@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
 from config import *
-import ipdb
+#import ipdb
 
 
 def get_test_cases(feature_name_list, feature_type, length):
