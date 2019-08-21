@@ -1,13 +1,13 @@
 {
-  "model_type": "GRU",
-  "naming_prefix": "GRU-3_subnets",
+  "model_type": "TCN",
+  "naming_prefix": "TCN-3_subnets",
   "input_dim": 1024,
   "i3d_time": 16,
 
   "training_params": {
     "TCN": {
       "max_step_num": 301,
-      "batch_size": 8,
+      "batch_size": 2,
 
       "learning_rate": 1e-3,
       "weight_decay": 1e-5,
