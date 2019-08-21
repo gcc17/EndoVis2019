@@ -3,12 +3,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 import ipdb
+from config import *
+
 
 ############### Embedding ######################
 
 class EmbedModule(nn.Module):
 
     def __init__(self, input_dim, output_dim, dropout_rate):
+        super(EmbedModule, self).__init__()
 
         self.input_dim =input_dim
         self.output_dim = output_dim
@@ -32,17 +35,18 @@ class EmbedModule(nn.Module):
 ########### GRU ####################
 
 class GRUNet(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, dropout_rate):
         super(GRUNet, self).__init__()
 
         self.hidden_dim = 32
         self.input_dim = input_dim
-        self.base = nn.GRU(
-                input_size=input_dim,
-                hidden_size=self.hidden_dim,
-                num_layers=1,
-                batch_first=True
-                )
+        self.base = EmbedModule(input_dim, 64, dropout_rate)
+        self.middle = nn.GRU(
+            input_size=64,
+            hidden_size=self.hidden_dim,
+            num_layers=1,
+            batch_first=True
+        )
         self.phase_pred_net = nn.Sequential(
                 nn.Linear(self.hidden_dim, 16),
                 nn.ReLU(),
@@ -59,23 +63,32 @@ class GRUNet(nn.Module):
                 nn.Linear(8, 4)
                 )
 
-        def forward(self, x):
+    def forward(self, x):
+        x = self.base(x)
+        batch_size = x.shape[0]
+        frame_num = x.shape[1]
 
-            # x (batch, time_step, input_dim)
-            # h_state (n_layers, batch, hidden_dim)
-            # r_out (batch, time_step, hidden_dim)
+        h_state = torch.zeros(1, batch_size,self.hidden_dim).cuda().float()
+        x, _ = self.middle(x, h_state)
 
-            batch_size = x.shape[0]
-            frame_num = x.shape[1]
-
-            h_state = torch.zeros(1, batch_size,self.hidden_dim).cuda().float()
-            x, _ = self.base(x, h_state)
-    
-            pred_phase = self.phase_pred_net(x)
-            pred_instrument = self.instrument_pred_net(x)
-            pred_action = self.action_pred_net(x)
+        upsample_net = nn.UpsamplingBilinear2d([i3d_time*frame_num,
+                                                self.hidden_dim])
+        x = x.unsqueeze(0)
+        x = upsample_net(x)
+        x = x.squeeze(0)
+        pred_phase = self.phase_pred_net(x)
+        pred_instrument = self.instrument_pred_net(x)
+        pred_action = self.action_pred_net(x)
 
         return pred_phase, pred_instrument, pred_action
+
+
+# input_x = torch.randn(3, 512, 1024)
+# model = GRUNet(1024)
+# pred_phase, pred_instrument, pred_action = model(input_x)
+# print(pred_phase[0].shape)
+# print(pred_instrument.shape)
+# print(pred_action.shape)
 
 
 ####################### TCN #################################
@@ -94,6 +107,7 @@ class TCNEncoder(nn.Module):
         x = self.pool(x)
         return x
 
+
 class TCNDecoder(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(TCNDecoder, self).__init__()
@@ -108,56 +122,58 @@ class TCNDecoder(nn.Module):
         x = self.relu(x)
         return x
 
+
 class TCNNet(nn.Module):
     def __init__(self, input_dim, dropout_rate):
         super(TCNNet, self).__init__()
-        
+
         self.base = EmbedModule(input_dim, 64, dropout_rate)
 
         self.middle = nn.Sequential(
-                TCNEncoder(64, 16),
-                TCNEncoder(16, 4),
-                TCNDecoder(4, 16),
-                TCNDecoder(16, 32)
-                )
+            TCNEncoder(64, 16),
+            TCNEncoder(16, 4),
+            TCNDecoder(4, 16),
+            TCNDecoder(16, 32)
+        )
 
         self.phase_branch = nn.Sequential(
-                nn.Linear(32, 16),
-                nn.ReLU(),
-                nn.Linear(16, 7)
-                )
-        
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 7)
+        )
+
         self.instrument_branch = nn.Sequential(
-                nn.Linear(32, 24),
-                nn.ReLU(),
-                nn.Linear(24, 21)
-                )
-        
+            nn.Linear(32, 24),
+            nn.ReLU(),
+            nn.Linear(24, 21)
+        )
+
         self.action_branch = nn.Sequential(
-                nn.Linear(32, 8),
-                nn.ReLU(),
-                nn.Linear(8, 4)
-                )
+            nn.Linear(32, 8),
+            nn.ReLU(),
+            nn.Linear(8, 4)
+        )
 
-        def forward(self, x):
-            x = self.base(x)
-                    
-            padding = 4 - (x.shape[1] % 4)
-            padding = padding % 4                        
-            if padding != 0:
-                x = nn.functional.pad(x, (0, 0, 0, padding),mode='constant', value=0)
-            assert(x.shape[1] % 4 == 0)    
-            
-            x = x.permute(0, 2, 1)
-            x = self.middle(x)
-            x = x.permute(0, 2, 1)
+    def forward(self, x):
+        x = self.base(x)
 
-            if padding != 0:
-                x = x[:, :-padding, :]
+        padding = 4 - (x.shape[1] % 4)
+        padding = padding % 4
+        if padding != 0:
+            x = nn.functional.pad(x, (0, 0, 0, padding), mode='constant',
+                                      value=0)
+        assert (x.shape[1] % 4 == 0)
+
+        x = x.permute(0, 2, 1)
+        x = self.middle(x)
+        x = x.permute(0, 2, 1)
+
+        if padding != 0:
+            x = x[:, :-padding, :]
             
-            phase = self.phase_branch(x)
-            instrument = self.instrument_branch(x)
-            action = self.action_branch(x)
+        phase = self.phase_branch(x)
+        instrument = self.instrument_branch(x)
+        action = self.action_branch(x)
             
-            return phase, instrument, action
-                                                                                                                                            
+        return phase, instrument, action
+              

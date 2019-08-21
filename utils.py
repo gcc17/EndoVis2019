@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import subprocess
 from config import *
+import ipdb
 
-i3d_time=16
 
 def get_test_cases(feature_name_list, feature_type, length):
     feature_dir = '../i3d'
@@ -65,52 +65,52 @@ def get_test_gt(feature_name, flips_num, length):
 def get_train_gt(feature_name, frame, length, times=i3d_time):
     tmp = feature_name.split('-')
     name = '-'.join([tmp[0], tmp[1]]) + '_'
-    gt_dir = '../../Annotations/'
+    # print("in get_train_gt: ", name)
+    gt_dir = '../Annotations/'
     gt_paths = [os.path.join(gt_dir, i) for i in os.listdir(gt_dir) if (i.endswith('.csv') and i.startswith(name))]
+    # print(gt_paths)
+    # ipdb.set_trace()
     for gt_path in gt_paths:
-        print(gt_path)
+        # print(gt_path)
         # gt_data = pd.read_csv(gt_path)
         tmp1 = np.loadtxt(gt_path, delimiter=",")
         tmp1 = np.array(tmp1)
         gt_data = tmp1[0:, 1:]
         gt_data = gt_data[frame : frame + (times * length), 0:]
         if (gt_path.endswith('Phase.csv')):
-            print('phase ', end='')
-            print(gt_data.shape)
+            # print('phase ', end='')
+            # print(gt_data.shape)
             gt_phase = gt_data
         elif (gt_path.endswith('Instrument.csv')):
-            print('instrument ', end='')
-            print(gt_data.shape)
+            # print('instrument ', end='')
+            # print(gt_data.shape)
             gt_instrument = gt_data
         elif (gt_path.endswith('Action.csv')):
-            print('action ', end='')
-            print(gt_data.shape)
+            # print('action ', end='')
+            # print(gt_data.shape)
             gt_action = gt_data
         elif (gt_path.endswith('Action_Detailed.csv')):
-            print('action_detailed ', end='')
-            print(gt_data.shape)
+            # print('action_detailed ', end='')
+            # print(gt_data.shape)
             gt_action_detailed = gt_data
     return gt_phase, gt_instrument, gt_action, gt_action_detailed
 
 
 def get_phase_error(pred_phase, gt_phase):
-    # pred_phase: numpy, frames x 4
+    # pred_phase: numpy, frames x 7
     criterion = nn.CrossEntropyLoss()
-    gt_phase = torch.from_numpy(gt_phase)
-    loss = criterion(pred_phase, gt_phase)
+    loss = criterion(pred_phase, gt_phase.squeeze())
     return loss
 
 
 def get_instrument_error(pred_instrument, gt_instrument):
     criterion = nn.BCEWithLogitsLoss()
-    gt_instrument = torch.from_numpy(gt_instrument)
     loss = criterion(pred_instrument, gt_instrument)
     return loss
 
 
 def get_action_error(pred_action, gt_action):
     criterion = nn.BCEWithLogitsLoss()
-    gt_action = torch.from_numpy(gt_action)
     loss = criterion(pred_action, gt_action)
     return loss
 

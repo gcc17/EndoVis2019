@@ -1,6 +1,8 @@
 {
-  "model_type": "RNN",
-  "naming_prefix": "RNN-3_subnets",
+  "model_type": "GRU",
+  "naming_prefix": "GRU-3_subnets",
+  "input_dim": 1024,
+  "i3d_time": 16,
 
   "training_params": {
     "TCN": {
@@ -20,7 +22,7 @@
     },
     "GRU": {
       "max_step_num": 301,
-      "batch_size": 8,
+      "batch_size": 2,
 
       "learning_rate": 1e-3,
       "weight_decay": 1e-5,
