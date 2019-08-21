@@ -48,27 +48,22 @@ class GRUNet(nn.Module):
             batch_first=True
         )
         self.phase_pred_net = nn.Sequential(
-            nn.Linear(self.hidden_dim, 16),
-            nn.ReLU(),
-            nn.Linear(16, 7)
-        )
+                nn.Linear(self.hidden_dim, 16),
+                nn.ReLU(),
+                nn.Linear(16, 7)
+                )
         self.instrument_pred_net = nn.Sequential(
-            nn.Linear(self.hidden_dim, 24),
-            nn.ReLU(),
-            nn.Linear(24, 21)
-        )
+                nn.Linear(self.hidden_dim, 24),
+                nn.ReLU(),
+                nn.Linear(24, 21)
+                )
         self.action_pred_net = nn.Sequential(
-            nn.Linear(self.hidden_dim, 8),
-            nn.ReLU(),
-            nn.Linear(8, 4)
-        )
+                nn.Linear(self.hidden_dim, 8),
+                nn.ReLU(),
+                nn.Linear(8, 4)
+                )
 
     def forward(self, x):
-
-        # x (batch, time_step, input_dim)
-        # h_state (n_layers, batch, hidden_dim)
-        # r_out (batch, time_step, hidden_dim)
-
         x = self.base(x)
         batch_size = x.shape[0]
         frame_num = x.shape[1]
@@ -159,25 +154,26 @@ class TCNNet(nn.Module):
             nn.Linear(8, 4)
         )
 
-        def forward(self, x):
-            x = self.base(x)
+    def forward(self, x):
+        x = self.base(x)
 
-            padding = 4 - (x.shape[1] % 4)
-            padding = padding % 4
-            if padding != 0:
-                x = nn.functional.pad(x, (0, 0, 0, padding), mode='constant',
+        padding = 4 - (x.shape[1] % 4)
+        padding = padding % 4
+        if padding != 0:
+            x = nn.functional.pad(x, (0, 0, 0, padding), mode='constant',
                                       value=0)
-            assert (x.shape[1] % 4 == 0)
+        assert (x.shape[1] % 4 == 0)
 
-            x = x.permute(0, 2, 1)
-            x = self.middle(x)
-            x = x.permute(0, 2, 1)
+        x = x.permute(0, 2, 1)
+        x = self.middle(x)
+        x = x.permute(0, 2, 1)
 
-            if padding != 0:
-                x = x[:, :-padding, :]
-
-            phase = self.phase_branch(x)
-            instrument = self.instrument_branch(x)
-            action = self.action_branch(x)
-
-            return phase, instrument, action
+        if padding != 0:
+            x = x[:, :-padding, :]
+            
+        phase = self.phase_branch(x)
+        instrument = self.instrument_branch(x)
+        action = self.action_branch(x)
+            
+        return phase, instrument, action
+              

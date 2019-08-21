@@ -122,4 +122,3 @@ def num2name(num_list, feature_type):
         s = s + '-' + feature_type + '.npz'
         name_list.append(s)
     return name_list
-
