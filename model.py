@@ -132,8 +132,10 @@ class TCNNet(nn.Module):
         self.middle = nn.Sequential(
             TCNEncoder(64, 16),
             TCNEncoder(16, 4),
-            TCNDecoder(4, 16),
-            TCNDecoder(16, 32)
+            TCNDecoder(4, 8),
+            TCNDecoder(8, 16),
+            TCNDecoder(16, 32),
+            TCNDecoder(32, 64)
         )
 
         self.phase_branch = nn.Sequential(
