@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
-import ipdb
+#import ipdb
 from config import *
 
 
@@ -132,8 +132,10 @@ class TCNNet(nn.Module):
         self.middle = nn.Sequential(
             TCNEncoder(64, 16),
             TCNEncoder(16, 4),
-            TCNDecoder(4, 16),
-            TCNDecoder(16, 32)
+            TCNDecoder(4, 8),
+            TCNDecoder(8, 16),
+            TCNDecoder(16, 32),
+            TCNDecoder(32, 64)
         )
 
         self.phase_branch = nn.Sequential(
@@ -155,6 +157,7 @@ class TCNNet(nn.Module):
         )
 
     def forward(self, x):
+        frame_num = x.shape[1]
         x = self.base(x)
 
         padding = 4 - (x.shape[1] % 4)
@@ -169,11 +172,17 @@ class TCNNet(nn.Module):
         x = x.permute(0, 2, 1)
 
         if padding != 0:
-            x = x[:, :-padding, :]
-            
+            x = x[:, :-padding, :]    
+        
+        upsample_net = nn.UpsamplingBilinear2d([i3d_time * frame_num, 32])
+
+        x = x.unsqueeze(0)
+        x = upsample_net(x)
+        x = x.squeeze(0)
+        
         phase = self.phase_branch(x)
         instrument = self.instrument_branch(x)
         action = self.action_branch(x)
-            
+        
         return phase, instrument, action
               

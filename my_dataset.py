@@ -1,6 +1,7 @@
 import random
 import numpy as np
 from torch.utils.data import Dataset
+from config import *
 
 from utils import get_test_cases, get_train_case, get_test_gt, get_train_gt
 
@@ -53,8 +54,9 @@ class TrainDataset(Dataset):
         return_dict['idx'] = np.array(idx)
         return_dict['gt_phase'], return_dict['gt_instrument'], return_dict[
             'gt_action'], return_dict['gt_action_detailed'] = get_train_gt(
-            name, frame, self.length)
+            name, frame * i3d_time, self.length)
         return_dict['data'] = np.array(data)
         return_dict['is_train_case'] = 1
+        return_dict['start_frame'] = frame * i3d_time
 
         return return_dict
