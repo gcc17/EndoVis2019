@@ -2,7 +2,7 @@
   "model_type": "TCN",
   "naming_prefix": "TCN-3_subnets",
   "input_dim": 1024,
-  "i3d_time": 16,
+  "i3d_time": 4,
 
   "training_params": {
     "TCN": {

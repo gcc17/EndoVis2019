@@ -31,10 +31,10 @@ def get_test_combination_cases(feature_name_list, feature_type, length):
         for j in range(len(cases_rgb[i])):
             for n in range(len(cases_rgb[i][j])):
                 cases_rgb[i][j][n] += cases_flow[i][j][n]
-    print(len(cases_rgb))
-    print(len(cases_rgb[0]))
-    print(len(cases_rgb[0][0]))
-    print(len(cases_rgb[0][0][0]))
+    #print(len(cases_rgb))
+    #print(len(cases_rgb[0]))
+    #print(len(cases_rgb[0][0]))
+    #print(len(cases_rgb[0][0][0]))
     return cases_rgb, flips_nums
 
 
@@ -78,10 +78,10 @@ def get_train_combination_case(feature_name_list, feature_type, length):
     else:
         data_rgb, name, frame = get_train_case(rgb_list, 'rgb_oversample_4', length, rgb_list[idx])
         data_flow, name, frame = get_train_case(flow_list, 'flow_oversample_4', length, flow_list[idx], frame)
-    print(data_rgb.shape)
-    print(data_flow.shape)
+    #print(data_rgb.shape)
+    #print(data_flow.shape)
     data = np.concatenate((data_rgb, data_flow), axis=1)
-    print(data.shape)
+    #print(data.shape)
     return data, name, frame
 
 
