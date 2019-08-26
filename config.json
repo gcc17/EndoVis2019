@@ -1,17 +1,18 @@
 {
   "model_type": "TCN",
-  "naming_prefix": "TCN-3_subnets",
-  "input_dim": 1024,
+  "naming_prefix": "TCN-3_subnets_combination_1",
+  "input_dim": 2048,
   "i3d_time": 4,
+  "combination" : "True",
 
   "training_params": {
     "TCN": {
-      "max_step_num": 1001,
-      "batch_size": 8,
+      "max_step_num": 301,
+      "batch_size": 4,
 
-      "learning_rate": 1e-4,
-      "weight_decay": 1e-5,
-      "dropout_rate": 0.5,
+      "learning_rate": 1e-3,
+      "weight_decay": 0,
+      "dropout_rate": 0.1,
 
       "log_freq": 30,
 

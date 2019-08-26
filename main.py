@@ -7,7 +7,7 @@ from my_dataset import TrainDataset, TestDataset
 from model import TCNNet, GRUNet
 import os
 from config import *
-from utils import get_phase_error, get_instrument_error, get_action_error, num2name
+from utils import get_phase_error, get_instrument_error, get_action_error, get_acc_phase, num2name
 #import ipdb
 
 ######################
@@ -25,6 +25,9 @@ def test(model, test_loader):
     total_action = 0.0
 
     with torch.no_grad():
+        phase_right_all = 0
+        phase_wrong_all = 0
+        
         for num, data in enumerate(test_loader):
 
             feature = data['data'].cuda().float()
@@ -45,6 +48,10 @@ def test(model, test_loader):
                                     data['gt'][i]['gt_instrument'].squeeze(0).cuda().float())
                     action_error += get_action_error(pred_action.squeeze(0),
                                     data['gt'][i]['gt_action'].squeeze(0).cuda().float())
+                    phase_right, phase_wrong = get_acc_phase(pred_phase.squeeze(0),
+                                    data['gt'][i]['gt_phase'].squeeze(0).cuda().long())
+                    phase_right_all += phase_right
+                    phase_wrong_all += phase_wrong
                     # print("phase_error is ", phase_error, "instrument_error
                     # is ",instrument_error,"action_error is ", action_error)
                 # print("\n")
@@ -56,7 +63,7 @@ def test(model, test_loader):
                 total_instrument += instrument_error
                 total_action += action_error
 
-    return total_phase / test_num, total_instrument / test_num, total_action / test_num
+    return total_phase / test_num, total_instrument / test_num, total_action / test_num, phase_right_all / (phase_right_all + phase_wrong_all) 
 
 
 def train(model, train_loader, test_loader, naming, use_tf_log):
@@ -74,7 +81,8 @@ def train(model, train_loader, test_loader, naming, use_tf_log):
 
     result_dict = {'loss_phase': [], 'loss_instrument': [], 'loss_action': [],
                    'loss_total': [],
-                   'test_phase': [], 'test_instrument': [], 'test_action': []}
+                   'test_phase': [], 'test_instrument': [], 'test_action': [],
+                   'acc_phase': []}
 
     # loss function and optimizer
     optimizer = optim.Adam(model.parameters(), lr=learning_rate,
@@ -98,22 +106,22 @@ def train(model, train_loader, test_loader, naming, use_tf_log):
 
                 print("begin test...")
                 model.eval()
-                loss_test_phase, loss_test_instrument, loss_test_action = test(
+                loss_test_phase, loss_test_instrument, loss_test_action, acc_phase = test(
                     model, test_loader)
                 print(
-                    '{} test_phase:{} test_instrument:{} test_action:{}'.format(
+                        '{} test_phase:{} test_instrument:{} test_action:{} acc_phase:{}'.format(
                         naming, loss_test_phase, loss_test_instrument,
-                        loss_test_action))
+                        loss_test_action, acc_phase))
 
                 if use_tf_log:
                     logger.scalar_summary('test_phase', loss_test_phase, step)
-                    logger.scalar_summary('test_instrument',
-                                          loss_test_instrument,
-                                          step)
+                    logger.scalar_summary('test_instrument', loss_test_instrument, step)
                     logger.scalar_summary('test_action', loss_test_action, step)
+                    logger.scalar_summary('acc_phase', acc_phase, step)
                 result_dict['test_phase'].append(loss_test_phase)
                 result_dict['test_instrument'].append(loss_test_instrument)
                 result_dict['test_action'].append(loss_test_action)
+                result_dict['acc_phase'].append(acc_phase)
 
                 torch.save(model.state_dict(),
                            os.path.join(model_dir, 'model'), )

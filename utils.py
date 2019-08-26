@@ -110,7 +110,7 @@ def get_test_gt(feature_name, flips_num, length):
     gts = []
     for i in range(flips_num):
         gt = {}
-        gt['gt_phase'], gt['gt_instrument'], gt['gt_action'], gt['gt_action_detailed'] = get_train_gt(feature_name, i * length * i3d_time, length, times=i3d_time)
+        gt['gt_phase'], gt['gt_instrument'], gt['gt_action'], gt['gt_action_detailed'], gt['gt_calot_skill'], gt['gt_dissection_skill'] = get_train_gt(feature_name, i * length * i3d_time, length, times=i3d_time)
         gts.append(gt)
     return gts
 
@@ -130,6 +130,11 @@ def get_train_gt(feature_name, frame, length, times=i3d_time):
         tmp1 = np.array(tmp1)
         gt_data = tmp1[0:, 1:]
         gt_data = gt_data[frame : frame + (times * length), 0:]
+        
+        # without skill, must have the sentence below
+        gt_calot_skill = []
+        gt_dissection_skill = []
+
         if (gt_path.endswith('Phase.csv')):
             # print('phase ', end='')
             # print(gt_data.shape)
@@ -146,7 +151,11 @@ def get_train_gt(feature_name, frame, length, times=i3d_time):
             # print('action_detailed ', end='')
             # print(gt_data.shape)
             gt_action_detailed = gt_data
-    return gt_phase, gt_instrument, gt_action, gt_action_detailed
+        elif (gt_path.endswith('calot_skill.csv')):
+            gt_calot_skill = gt_data
+        elif (gt_path.endswith('dissection_skill.csv')):
+            gt_dissection_skill = gt_data
+    return gt_phase, gt_instrument, gt_action, gt_action_detailed, gt_calot_skill, gt_dissection_skill
 
 
 def get_phase_error(pred_phase, gt_phase):
@@ -166,6 +175,25 @@ def get_action_error(pred_action, gt_action):
     criterion = nn.BCEWithLogitsLoss()
     loss = criterion(pred_action, gt_action)
     return loss
+
+
+def get_acc_phase(pred_phase, gt_phase):
+    assert(len(pred_phase) == len(gt_phase))
+    right = 0
+    wrong = 0
+    for i in range(len(gt_phase)):
+        #print('pred: ', end='')
+        #print(pred_phase[i].cpu().numpy())
+        #print(np.argmax(pred_phase[i].cpu().numpy(), axis=0))
+        #print('gt: ', end='')
+        #print(gt_phase[i].cpu().numpy())
+        #print(np.argmax(pred_phase[i].cpu().numpy(), axis=0) == gt_phase[i].cpu().numpy())
+        
+        if (np.argmax(pred_phase[i].cpu().numpy(), axis=0) == gt_phase[i].cpu().numpy()):
+            right += 1
+        else:
+            wrong += 1
+    return right, wrong
 
 
 def num2name(num_list, feature_type):
