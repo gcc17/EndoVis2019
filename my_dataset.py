@@ -67,8 +67,9 @@ class TrainDataset(Dataset):
         return return_dict
 
 #def main():
-#    feature_name = ['Hei-Chole1-rgb.npz', 'Hei-Chole2-rgb.npz', 'Hei-Chole7-rgb.npz']
-#    t = TestDataset(feature_name, 'rgb_oversample_4', 512, True)
-#    y = TrainDataset(feature_name, 'flow_oversample_4', 512, True)
+#    test_name = ['Hei-Chole1-rgb.npz', 'Hei-Chole2-rgb.npz', 'Hei-Chole7-rgb.npz']
+#    train_name = ['Hei-Chole11-rgb.npz', 'Hei-Chole12-rgb.npz', 'Hei-Chole10-rgb.npz']
+#    t = TestDataset(test_name, 'rgb_oversample_4', 512)
+#    y = TrainDataset(train_name, 'flow_oversample_4', 512)
 
 #main()

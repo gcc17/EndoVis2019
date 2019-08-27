@@ -47,7 +47,9 @@ def get_test_cases(feature_name_list, feature_type, length):
         feature_npz = np.load(os.path.join(feature_dir, name_item))
         print(feature_dir + '/' + name_item, ' for test')
         feature = feature_npz['feature'].tolist()
-        feature = feature[0]
+        idx = random.randint(0, len(feature) - 1)
+        #print(idx)
+        feature = feature[idx]
         if (len(feature) < length):
             print('video length is ', len(feature))
             print('video is shorter than ', length)
@@ -187,8 +189,6 @@ def get_acc_phase(pred_phase, gt_phase):
         #print(np.argmax(pred_phase[i].cpu().numpy(), axis=0))
         #print('gt: ', end='')
         #print(gt_phase[i].cpu().numpy())
-        #print(np.argmax(pred_phase[i].cpu().numpy(), axis=0) == gt_phase[i].cpu().numpy())
-        
         if (np.argmax(pred_phase[i].cpu().numpy(), axis=0) == gt_phase[i].cpu().numpy()):
             right += 1
         else:

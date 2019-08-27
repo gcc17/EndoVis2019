@@ -127,35 +127,35 @@ class TCNNet(nn.Module):
     def __init__(self, input_dim, dropout_rate):
         super(TCNNet, self).__init__()
 
-        self.base = EmbedModule(input_dim, 128, dropout_rate)
+        self.base = EmbedModule(input_dim, 256, dropout_rate)
 
         self.middle = nn.Sequential(
-            TCNEncoder(128, 32),
-            TCNEncoder(32, 8),
-            TCNDecoder(8, 16),
-            TCNDecoder(16, 32),
-            TCNDecoder(32, 64),
-            TCNDecoder(64, 128)
+            TCNEncoder(256, 64),
+            TCNEncoder(64, 16),
+            TCNDecoder(16, 64),
+            TCNDecoder(64, 256),
+            TCNDecoder(256, 512),
+            TCNDecoder(512, 1024)
         )
         
-        self.branch_size = 64
+        self.branch_size = 128
 
         self.phase_branch = nn.Sequential(
-            nn.Linear(self.branch_size, 16),
+            nn.Linear(self.branch_size, 32),
             nn.ReLU(),
-            nn.Linear(16, 7)
+            nn.Linear(32, 7)
         )
 
         self.instrument_branch = nn.Sequential(
-            nn.Linear(self.branch_size, 32),
+            nn.Linear(self.branch_size, 64),
             nn.ReLU(),
-            nn.Linear(32, 21)
+            nn.Linear(64, 21)
         )
 
         self.action_branch = nn.Sequential(
-            nn.Linear(self.branch_size, 16),
+            nn.Linear(self.branch_size, 32),
             nn.ReLU(),
-            nn.Linear(16, 4)
+            nn.Linear(32, 4)
         )
 
     def forward(self, x):
