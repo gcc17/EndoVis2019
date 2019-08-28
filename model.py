@@ -127,33 +127,35 @@ class TCNNet(nn.Module):
     def __init__(self, input_dim, dropout_rate):
         super(TCNNet, self).__init__()
 
-        self.base = EmbedModule(input_dim, 64, dropout_rate)
+        self.base = EmbedModule(input_dim, 256, dropout_rate)
 
         self.middle = nn.Sequential(
+            TCNEncoder(256, 64),
             TCNEncoder(64, 16),
-            TCNEncoder(16, 4),
-            TCNDecoder(4, 8),
-            TCNDecoder(8, 16),
-            TCNDecoder(16, 32),
-            TCNDecoder(32, 64)
+            TCNDecoder(16, 64),
+            TCNDecoder(64, 256),
+            TCNDecoder(256, 512),
+            TCNDecoder(512, 1024)
         )
+        
+        self.branch_size = 128
 
         self.phase_branch = nn.Sequential(
-            nn.Linear(32, 16),
+            nn.Linear(self.branch_size, 32),
             nn.ReLU(),
-            nn.Linear(16, 7)
+            nn.Linear(32, 7)
         )
 
         self.instrument_branch = nn.Sequential(
-            nn.Linear(32, 24),
+            nn.Linear(self.branch_size, 64),
             nn.ReLU(),
-            nn.Linear(24, 21)
+            nn.Linear(64, 21)
         )
 
         self.action_branch = nn.Sequential(
-            nn.Linear(32, 8),
+            nn.Linear(self.branch_size, 32),
             nn.ReLU(),
-            nn.Linear(8, 4)
+            nn.Linear(32, 4)
         )
 
     def forward(self, x):
@@ -174,7 +176,7 @@ class TCNNet(nn.Module):
         if padding != 0:
             x = x[:, :-padding, :]    
         
-        upsample_net = nn.UpsamplingBilinear2d([i3d_time * frame_num, 32])
+        upsample_net = nn.UpsamplingBilinear2d([i3d_time * frame_num, self.branch_size])
 
         x = x.unsqueeze(0)
         x = upsample_net(x)
