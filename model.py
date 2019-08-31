@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
-#import ipdb
+import ipdb
 from config import *
 
 
@@ -44,31 +43,37 @@ class GRUNet(nn.Module):
         self.middle = nn.GRU(
             input_size=64,
             hidden_size=self.hidden_dim,
-            num_layers=1,
+            num_layers=3,
             batch_first=True
         )
         self.phase_pred_net = nn.Sequential(
-                nn.Linear(self.hidden_dim, 16),
-                nn.ReLU(),
-                nn.Linear(16, 7)
-                )
+            nn.Linear(self.hidden_dim+25, 16),
+            nn.BatchNorm1d(i3d_time*frame_num),
+            nn.Linear(16, 8),
+            nn.ReLU(),
+            nn.Linear(8, 7)
+        )
         self.instrument_pred_net = nn.Sequential(
-                nn.Linear(self.hidden_dim, 24),
-                nn.ReLU(),
-                nn.Linear(24, 21)
-                )
+            nn.Linear(self.hidden_dim, 24),
+            nn.ReLU(),
+            nn.Linear(24, 21)
+        )
         self.action_pred_net = nn.Sequential(
-                nn.Linear(self.hidden_dim, 8),
-                nn.ReLU(),
-                nn.Linear(8, 4)
-                )
+            nn.Linear(self.hidden_dim, 8),
+            nn.ReLU(),
+            nn.Linear(8, 4)
+        )
 
     def forward(self, x):
+
+        # x (batch, time_step, input_dim)
+        # h_state (n_layers, batch, hidden_dim)
+        # r_out (batch, time_step, hidden_dim)
+
         x = self.base(x)
         batch_size = x.shape[0]
-        frame_num = x.shape[1]
 
-        h_state = torch.zeros(1, batch_size,self.hidden_dim).cuda().float()
+        h_state = torch.zeros(3, batch_size,self.hidden_dim).cuda().float()
         x, _ = self.middle(x, h_state)
 
         upsample_net = nn.UpsamplingBilinear2d([i3d_time*frame_num,
@@ -76,19 +81,12 @@ class GRUNet(nn.Module):
         x = x.unsqueeze(0)
         x = upsample_net(x)
         x = x.squeeze(0)
-        pred_phase = self.phase_pred_net(x)
         pred_instrument = self.instrument_pred_net(x)
         pred_action = self.action_pred_net(x)
+        tmp = torch.cat([pred_instrument, pred_action], dim=2)
+        pred_phase = self.phase_pred_net(torch.cat([x, tmp], dim=2))
 
         return pred_phase, pred_instrument, pred_action
-
-
-# input_x = torch.randn(3, 512, 1024)
-# model = GRUNet(1024)
-# pred_phase, pred_instrument, pred_action = model(input_x)
-# print(pred_phase[0].shape)
-# print(pred_instrument.shape)
-# print(pred_action.shape)
 
 
 ####################### TCN #################################
@@ -127,64 +125,52 @@ class TCNNet(nn.Module):
     def __init__(self, input_dim, dropout_rate):
         super(TCNNet, self).__init__()
 
-        self.base = EmbedModule(input_dim, 256, dropout_rate)
+        self.base = EmbedModule(input_dim, 64, dropout_rate)
 
         self.middle = nn.Sequential(
-            TCNEncoder(256, 64),
             TCNEncoder(64, 16),
-            TCNDecoder(16, 64),
-            TCNDecoder(64, 256),
-            TCNDecoder(256, 512),
-            TCNDecoder(512, 1024)
+            TCNEncoder(16, 4),
+            TCNDecoder(4, 16),
+            TCNDecoder(16, 32)
         )
-        
-        self.branch_size = 128
 
         self.phase_branch = nn.Sequential(
-            nn.Linear(self.branch_size, 32),
+            nn.Linear(32, 16),
             nn.ReLU(),
-            nn.Linear(32, 7)
+            nn.Linear(16, 7)
         )
 
         self.instrument_branch = nn.Sequential(
-            nn.Linear(self.branch_size, 64),
+            nn.Linear(32, 24),
             nn.ReLU(),
-            nn.Linear(64, 21)
+            nn.Linear(24, 21)
         )
 
         self.action_branch = nn.Sequential(
-            nn.Linear(self.branch_size, 32),
+            nn.Linear(32, 8),
             nn.ReLU(),
-            nn.Linear(32, 4)
+            nn.Linear(8, 4)
         )
 
-    def forward(self, x):
-        frame_num = x.shape[1]
-        x = self.base(x)
+        def forward(self, x):
+            x = self.base(x)
 
-        padding = 4 - (x.shape[1] % 4)
-        padding = padding % 4
-        if padding != 0:
-            x = nn.functional.pad(x, (0, 0, 0, padding), mode='constant',
+            padding = 4 - (x.shape[1] % 4)
+            padding = padding % 4
+            if padding != 0:
+                x = nn.functional.pad(x, (0, 0, 0, padding), mode='constant',
                                       value=0)
-        assert (x.shape[1] % 4 == 0)
+            assert (x.shape[1] % 4 == 0)
 
-        x = x.permute(0, 2, 1)
-        x = self.middle(x)
-        x = x.permute(0, 2, 1)
+            x = x.permute(0, 2, 1)
+            x = self.middle(x)
+            x = x.permute(0, 2, 1)
 
-        if padding != 0:
-            x = x[:, :-padding, :]    
-        
-        upsample_net = nn.UpsamplingBilinear2d([i3d_time * frame_num, self.branch_size])
+            if padding != 0:
+                x = x[:, :-padding, :]
 
-        x = x.unsqueeze(0)
-        x = upsample_net(x)
-        x = x.squeeze(0)
-        
-        phase = self.phase_branch(x)
-        instrument = self.instrument_branch(x)
-        action = self.action_branch(x)
-        
-        return phase, instrument, action
-              
+            phase = self.phase_branch(x)
+            instrument = self.instrument_branch(x)
+            action = self.action_branch(x)
+
+            return phase, instrument, action

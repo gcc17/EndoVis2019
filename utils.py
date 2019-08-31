@@ -3,209 +3,267 @@ import torch
 import numpy as np
 import random
 import torch.nn as nn
-from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
-import subprocess
 from config import *
-#import ipdb
+import ipdb
+import matplotlib.pyplot as plt
+import torch.nn.functional as F
+import inspect, re
 
+sig_f = nn.Sigmoid()
 
-def get_test_combination_cases(feature_name_list, feature_type, length):
-    rgb_list, flow_list = [], []
-    for i in range(len(feature_name_list)):
-        tmp = feature_name_list[i].split('-')
-        tmp = tmp[:-1]
-        tmp = '-'.join(tmp)
-        rgb_list.append(tmp + '-rgb.npz')
-        flow_list.append(tmp + '-flow.npz')
-    
-    if (len(feature_type) < 5):
-        cases_rgb, flips_nums = get_test_cases(rgb_list, 'rgb', length)
-        cases_flow, flips_nums = get_test_cases(flow_list, 'flow', length)
-    else:
-        cases_rgb, flips_nums = get_test_cases(rgb_list, 'rgb_oversample_4', length)
-        cases_flow, flips_nums = get_test_cases(flow_list, 'flow_oversample_4', length)
-    
-    for i in range(len(cases_rgb)):
-        for j in range(len(cases_rgb[i])):
-            for n in range(len(cases_rgb[i][j])):
-                cases_rgb[i][j][n] += cases_flow[i][j][n]
-    #print(len(cases_rgb))
-    #print(len(cases_rgb[0]))
-    #print(len(cases_rgb[0][0]))
-    #print(len(cases_rgb[0][0][0]))
-    return cases_rgb, flips_nums
+"""
+name principle: acc/loss + train/eval/test + phase/action/instrument
+"""
 
 
 def get_test_cases(feature_name_list, feature_type, length):
-    feature_dir = '../i3d'
-    feature_dir = os.path.join(feature_dir, feature_type)
+    """
+    video clip features, no need to multiply i3d_time
+    :param feature_name_list: 
+    :param feature_type: 
+    :param length: 
+    :return: test_cases: n item, each item is a list, a video's whole feature
+        clip_nums: n item, each item is the number of video feature
+    """
+    fea_dir = os.path.join(feature_dir, feature_type)
     test_cases = []
-    flips_nums = []
+    clip_nums = []
+
     for name_item in feature_name_list:
-        feature_npz = np.load(os.path.join(feature_dir, name_item))
-        print(feature_dir + '/' + name_item, ' for test')
+        feature_npz = np.load(os.path.join(fea_dir, name_item))
+        print(fea_dir + '/' + name_item, ' for test')
         feature = feature_npz['feature'].tolist()
-        idx = random.randint(0, len(feature) - 1)
-        #print(idx)
-        feature = feature[idx]
-        if (len(feature) < length):
+        feature = feature[0]
+        if len(feature) < length:
             print('video length is ', len(feature))
             print('video is shorter than ', length)
             exit()
-        else:
-            flips_num = len(feature) // length
-            flips_nums.append(flips_num)
-        flips_feature = []
-        for flips_id in range(flips_num):
-            flips_feature.append(feature[flips_id * length : (flips_id + 1) * length])
-        test_cases.append(flips_feature)
-    return test_cases, flips_nums
+        clip_num = len(feature) // length
+        clip_nums.append(clip_num)
+
+        clip_feature = []
+        for clip_id in range(clip_num):
+            clip_feature.append(
+                feature[clip_id * length: (clip_id + 1) * length])
+        test_cases.append(clip_feature)
+
+    return test_cases, clip_nums
 
 
-def get_train_combination_case(feature_name_list, feature_type, length):
-    rgb_list, flow_list = [], []
-    for i in range(len(feature_name_list)):
-        tmp = feature_name_list[i].split('-')
-        tmp = tmp[:-1]
-        tmp = '-'.join(tmp)
-        rgb_list.append(tmp + '-rgb.npz')
-        flow_list.append(tmp + '-flow.npz')
-    idx = random.randint(0, len(feature_name_list) - 1)
-
-    if (len(feature_type) < 5):
-        data_rgb, name, frame = get_train_case(rgb_list, 'rgb', length, rgb_list[idx])
-        data_flow, name, frame = get_train_case(flow_list, 'flow', length, flow_list[idx], frame)
-    else:
-        data_rgb, name, frame = get_train_case(rgb_list, 'rgb_oversample_4', length, rgb_list[idx])
-        data_flow, name, frame = get_train_case(flow_list, 'flow_oversample_4', length, flow_list[idx], frame)
-    #print(data_rgb.shape)
-    #print(data_flow.shape)
-    data = np.concatenate((data_rgb, data_flow), axis=1)
-    #print(data.shape)
-    return data, name, frame
-
-
-def get_train_case(feature_name_list, feature_type, length, name='', start_frame=-1):
-    if name == '':
-        name = feature_name_list[random.randint(0, len(feature_name_list) - 1)]
-    feature_dir = '../i3d'
-    feature_dir = os.path.join(feature_dir, feature_type)
-    feature_npz = np.load(os.path.join(feature_dir, name))
-    print(feature_dir + '/' + name, ' for train')
-    feature = list(feature_npz['feature'])
+def get_train_case(feature_name_list, feature_type, length):
+    name = feature_name_list[random.randint(0, len(feature_name_list) - 1)]
+    fea_dir = os.path.join(feature_dir, feature_type)
+    feature_npz = np.load(os.path.join(fea_dir, name))
+    feature = feature_npz['feature'].tolist()
     feature = feature[0]
-    if (len(feature) < length):
+    if len(feature) < length:
         print('video length is ', len(feature))
         print('video is shorter than ', length)
         exit()
-    else:
-        if start_frame == -1:
-            start_frame = random.randint(0, len(feature) - length)
-    data = feature[start_frame : (start_frame + length)]
-    data = np.array(data)
+    start_frame = random.randint(0, len(feature) - length)
+    data = feature[start_frame: start_frame + length]
     return data, name, start_frame
 
 
-def get_test_gt(feature_name, flips_num, length):
+# ground truth extraction, need to multiply i3d_time
+def get_train_gt(feature_name, start_frame, length, times=i3d_time):
+    feature_name = feature_name.lower()
+    tmp = feature_name.split('-')
+    name = '-'.join([tmp[0], tmp[1]])
+    gt_list = []
+    gt_name_list = ['Phase', 'Instrument', 'Action']
+    for i in range(3):
+        cur_dir = os.path.join(gt_dir, gt_name_list[i])
+        gt_path = [os.path.join(cur_dir, file) for file in os.listdir(cur_dir)
+                   if (file.endswith(gt_name_list[i].lower() + '.csv') and
+                       file.startswith(name + '_annotation'))]
+        gt_path = gt_path[0]
+
+        tmp1 = np.loadtxt(gt_path, delimiter=",")
+        tmp1 = np.array(tmp1)
+        gt_data = tmp1[0:, 1:]
+        gt_data = gt_data[start_frame: start_frame + (times * length), 0:]
+        if gt_data.shape[0] < times * length:
+            print("length error!")
+            ipdb.set_trace()
+        gt_list.append(gt_data)
+
+    return gt_list[0], gt_list[1], gt_list[2]
+
+
+# print(get_train_gt('Hei-Chole1-flow.npz', 0, 512))
+
+
+def get_test_gt(feature_name, clip_num, length):
+    """
+    :param feature_name: 
+    :param clip_num: 
+    :param length: 
+    :return: a list with clip_num items, each item is a dictionary, 
+    each key is a gt, each value is the clip annotation
+    """
     gts = []
-    for i in range(flips_num):
+    # if feature_name == num2name([2], 'flow')[0]:
+    #    ipdb.set_trace()
+    for i in range(clip_num):
         gt = {}
-        gt['gt_phase'], gt['gt_instrument'], gt['gt_action'], gt['gt_action_detailed'], gt['gt_calot_skill'], gt['gt_dissection_skill'] = get_train_gt(feature_name, i * length * i3d_time, length, times=i3d_time)
+        gt['gt_phase'], gt['gt_instrument'], gt['gt_action'] = \
+            get_train_gt(feature_name, i * length * i3d_time, length,
+                         times=i3d_time)
         gts.append(gt)
     return gts
 
 
-def get_train_gt(feature_name, frame, length, times=i3d_time):
-    tmp = feature_name.split('-')
-    name = '-'.join([tmp[0], tmp[1]]) + '_'
-    # print("in get_train_gt: ", name)
-    gt_dir = '../Annotations/'
-    gt_paths = [os.path.join(gt_dir, i) for i in os.listdir(gt_dir) if (i.endswith('.csv') and i.startswith(name))]
-    # print(gt_paths)
-    # ipdb.set_trace()
-    for gt_path in gt_paths:
-        # print(gt_path)
-        # gt_data = pd.read_csv(gt_path)
-        tmp1 = np.loadtxt(gt_path, delimiter=",")
-        tmp1 = np.array(tmp1)
-        gt_data = tmp1[0:, 1:]
-        gt_data = gt_data[frame : frame + (times * length), 0:]
-        
-        # without skill, must have the sentence below
-        gt_calot_skill = []
-        gt_dissection_skill = []
-
-        if (gt_path.endswith('Phase.csv')):
-            # print('phase ', end='')
-            # print(gt_data.shape)
-            gt_phase = gt_data
-        elif (gt_path.endswith('Instrument.csv')):
-            # print('instrument ', end='')
-            # print(gt_data.shape)
-            gt_instrument = gt_data
-        elif (gt_path.endswith('Action.csv')):
-            # print('action ', end='')
-            # print(gt_data.shape)
-            gt_action = gt_data
-        elif (gt_path.endswith('Action_Detailed.csv')):
-            # print('action_detailed ', end='')
-            # print(gt_data.shape)
-            gt_action_detailed = gt_data
-        elif (gt_path.endswith('calot_skill.csv')):
-            gt_calot_skill = gt_data
-        elif (gt_path.endswith('dissection_skill.csv')):
-            gt_dissection_skill = gt_data
-    return gt_phase, gt_instrument, gt_action, gt_action_detailed, gt_calot_skill, gt_dissection_skill
-
-
-def get_phase_error(pred_phase, gt_phase):
+def get_phase_loss(pred_phase, gt_phase):
     # pred_phase: numpy, frames x 7
     criterion = nn.CrossEntropyLoss()
     loss = criterion(pred_phase, gt_phase.squeeze())
     return loss
 
 
-def get_instrument_error(pred_instrument, gt_instrument):
+def get_instrument_loss(pred_instrument, gt_instrument):
     criterion = nn.BCEWithLogitsLoss()
     loss = criterion(pred_instrument, gt_instrument)
     return loss
 
 
-def get_action_error(pred_action, gt_action):
+def get_action_loss(pred_action, gt_action):
     criterion = nn.BCEWithLogitsLoss()
     loss = criterion(pred_action, gt_action)
     return loss
 
 
-def get_acc_phase(pred_phase, gt_phase):
-    assert(len(pred_phase) == len(gt_phase))
-    right = 0
-    wrong = 0
-    for i in range(len(gt_phase)):
-        #print('pred: ', end='')
-        #print(pred_phase[i].cpu().numpy())
-        #print(np.argmax(pred_phase[i].cpu().numpy(), axis=0))
-        #print('gt: ', end='')
-        #print(gt_phase[i].cpu().numpy())
-        if (np.argmax(pred_phase[i].cpu().numpy(), axis=0) == gt_phase[i].cpu().numpy()):
-            right += 1
-        else:
-            wrong += 1
-    return right, wrong
-
-
 def num2name(num_list, feature_type):
     name_list = []
     for item in num_list:
-        s = 'Hei-Chole' + item
-        if feature_type.startswith('flow'):
-            feature_type = 'flow'
-        elif feature_type.startswith('rgb'):
-            feature_type = 'rgb'
-        else:
-            print('There is something wrong with the feature_type!')
+        s = 'Hei-Chole' + str(item)
         s = s + '-' + feature_type + '.npz'
         name_list.append(s)
     return name_list
+
+
+def name2num(name_list, idx):
+    name = name_list[idx]
+    tmp = name.split('-')
+    tmp = tmp[1]
+    return int(tmp[5:])
+
+
+def store_info(result_dict, name_list, data_list, step, logger=None):
+    l = len(name_list)
+    if len(data_list) != l:
+        print("store error!")
+        exit()
+    for i in range(l):
+        result_dict[name_list[i]].append(data_list[i])
+        if logger:
+            logger.scalar_summary(name_list[i], data_list[i], step)
+
+
+def draw_phase(pred_phase, gt_phase, naming):
+    frames = pred_phase.shape[0]
+    frames = np.arange(0, frames)
+    pred_phase = pred_phase.cpu().numpy()
+    gt_phase = gt_phase.cpu().numpy()
+    plt.figure()
+    plt.plot(frames, pred_phase, c='r')
+    plt.plot(frames, gt_phase, c='g')
+    plt.savefig(naming + '.jpg')
+    plt.close()
+
+
+def get_phase_acc(pred_phase, gt_phase):
+    pred = pred_phase.argmax(dim=1)
+    # ipdb.set_trace()
+    # print(pred)
+    frames = gt_phase.shape[0]
+    gt = torch.cuda.LongTensor(frames)
+    for i in range(frames):
+        gt[i] = gt_phase[i].item()
+    # print(gt)
+    correct_pred = (pred == gt)
+    acc = float(sum(correct_pred))
+    # print(acc)
+    return acc / frames
+
+
+def kl_divergence(first_frame, second_frame):
+    former_frame = F.softmax(first_frame, dim=-1)
+    _kl = former_frame * (F.log_softmax(first_frame, dim=-1) -
+                          F.log_softmax(second_frame, dim=-1))
+    return torch.sum(_kl, dim=0)
+
+
+# model output: batch_size x time_step(512*16) x class
+# example based measures
+def get_multi_acc(pred_multi, gt_multi):
+    # ipdb.set_trace()
+    c = pred_multi.shape[1]
+    frames = pred_multi.shape[0]
+    sig_out = sig_f(pred_multi)
+    pred = torch.gt(sig_out, multi_val)
+    pred = pred.cuda().float()
+    eq = (pred == gt_multi)
+    eq = torch.sum(eq, dim=1)
+    acc = torch.sum(eq == c)
+    return acc / frames
+
+
+# label based measures
+def get_class_prec_rec_ji(pred_multi, gt_multi, c):
+    frames = pred_multi.shape[0]
+    sig_out = sig_f(pred_multi)
+    pred = torch.gt(sig_out, multi_val)
+    pred = pred.cuda().float()
+    common_c = 0.0
+    pred_c = 0.0
+    gt_c = 0.0
+    prec = 0.0
+    rec = 0.0
+    ji = 0.0
+    for i in range(frames):
+        if gt_multi[i][c] == 1:
+            gt_c += 1
+            if pred[i][c] == 1:
+                common_c += 1
+        if pred[i][c] == 1:
+            pred_c += 1
+    if pred_c > 0:
+        prec = common_c / pred_c
+    if gt_c > 0:
+        rec = common_c / gt_c
+    if pred_c + gt_c - common_c > 0:
+        ji = common_c / (pred_c + gt_c - common_c)
+    return prec, rec, ji
+
+
+def varname(p):
+    for line in inspect.getframeinfo(inspect.currentframe().f_back)[3]:
+        m = re.search(r'\bvarname\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)', line)
+        if m:
+            return m.group(1)
+
+
+# lr_origin = 0.1
+# print(type(varname(lr_origin)))
+
+
+def board_info(str_list, info_list, step, result_dict, logger, naming):
+    if naming == 1:
+        for i in range(len(str_list)):
+            name_list = str_list[i].split('_')
+            name_list[1] = 'eval'
+            str_list[i] = '_'.join(name_list)
+
+    for i in range(len(str_list)):
+        result_dict[str_list[i]].append(info_list[i])
+        name_list = str_list[i].split('_')
+        if logger is None:
+            continue
+        if name_list[1] == 'train':
+            if name_list[0] == 'loss':
+                logger.scalar_summary('loss/train_' + name_list[2],
+                                      info_list[i], step)
+        else:
+            logger.scalar_summary(name_list[0] + '/' + name_list[2],
+                                  info_list[i], step)
