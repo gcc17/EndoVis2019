@@ -1,18 +1,26 @@
 {
-  "model_type": "TCN",
-  "naming_prefix": "TCN-3_subnets_combination_2",
-  "input_dim": 2048,
-  "i3d_time": 4,
-  "combination" : "True",
+  "model_type": "GRU",
+  "naming_prefix": "drawing-GRU-cat2phase-crosseval-val05",
+  "input_dim": 1024,
+  "sample_step": 4,
+  "clip_len": 512,
+  "feature_dir": "../i3d_new",
+  "gt_dir": "../New_Annotations",
+  "instrument_category": 7,
+  "instrument_class": 21,
+  "split_num": 3,
+  "split_repeat": 15,
+  "case_num": 24,
+  "multi_val": 0.5,
 
   "training_params": {
     "TCN": {
-      "max_step_num": 601,
+      "max_step_num": 301,
       "batch_size": 8,
 
       "learning_rate": 1e-3,
-      "weight_decay": 0,
-      "dropout_rate": 0.1,
+      "weight_decay": 1e-5,
+      "dropout_rate": 0.5,
 
       "log_freq": 30,
 
@@ -22,14 +30,14 @@
       "loss_alpha": 1
     },
     "GRU": {
-      "max_step_num": 301,
-      "batch_size": 2,
+      "max_step_num": 3001,
+      "batch_size": 8,
 
       "learning_rate": 1e-3,
       "weight_decay": 1e-5,
       "dropout_rate": 0.5,
 
-      "log_freq": 30,
+      "log_freq": 100,
 
       "segment_num": null,
       "frames_per_segment": null,
