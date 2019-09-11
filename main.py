@@ -382,7 +382,7 @@ if __name__ == '__main__':
             )
             test_datadict = get_datadict(
                 gt_root_dir='../New_Annotations',
-                feature_dir='../i3d/rgb_oversample_4_norm',
+                feature_dir='../i3d/rgb_oversample_4',
                 feature_files=test_name_list,
                 sample_step=sample_step
             )
