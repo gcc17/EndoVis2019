@@ -1,18 +1,14 @@
 {
-  "model_type": "GRU",
-  "naming_prefix": "drawing-GRU-cat2phase-crosseval-val05",
-  "input_dim": 1024,
-  "sample_step": 4,
+  "model_type": "MLP",
+  "naming_prefix": "MLP-cat2phase-val05-cor0",
   "clip_len": 512,
   "feature_dir": "../i3d_new",
   "gt_dir": "../New_Annotations",
-  "instrument_category": 7,
-  "instrument_class": 21,
   "split_num": 3,
-  "split_repeat": 15,
+  "split_repeat": 6,
   "case_num": 24,
   "multi_val": 0.5,
-
+  
   "training_params": {
     "TCN": {
       "max_step_num": 301,
@@ -30,17 +26,25 @@
       "loss_alpha": 1
     },
     "GRU": {
-      "max_step_num": 3001,
+      "max_step_num": 50001,
       "batch_size": 8,
 
-      "learning_rate": 1e-3,
-      "weight_decay": 1e-5,
-      "dropout_rate": 0.5,
+      "weight_decay": 0,
+      "dropout_rate": 0.1,
 
-      "log_freq": 100,
+      "log_freq": 10000,
 
-      "segment_num": null,
-      "frames_per_segment": null,
+      "loss_alpha": 1
+    },
+    "MLP": {
+      "max_step_num": 50001,
+      "batch_size": 8,
+
+      "weight_decay": 0,
+      "dropout_rate": 0.1,
+
+      "log_freq": 10000,
+      "cor_mode": 0,
 
       "loss_alpha": 1
     }

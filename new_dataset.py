@@ -19,18 +19,27 @@ def get_datadict(
     features = [np.load(os.path.join(feature_dir, i))
                 for i in feature_files]
 
-    video_names = [i['video_name'].item().decode('UTF-8') for i in features]
+    feature_dir_list = feature_dir.split('_')
+    if feature_dir_list[-1] == 'norm':
+        video_names = [i['video_name'].item() for i in features]
+    else:
+        video_names = [i['video_name'].item().decode('UTF-8') for i in features]
     frame_nums = [i['frame_cnt'].item() for i in features]
     features = [i['feature'] for i in features]
-
     video_num = len(video_names)
+    # print("original video_names", video_names)
+    if feature_dir_list[-1] == 'norm':
+        for i in range(video_num):
+            video_name_list = video_names[i].split('-')
+            video_name_list.pop(-1)
+            video_names[i] = '-'.join(video_name_list)
+    # print("revised video_names", video_names)
 
     all_gts = [{} for i in range(video_num)]
 
     for i in range(video_num):
 
-        for gt_type in ['action', 'action_detailed',
-                        'phase', 'instrument', 'instrument_detailed']:
+        for gt_type in ['action', 'phase', 'instrument']:
             gt_dir = os.path.join(gt_root_dir,
                                   gt_type.split('_')[0].capitalize())
 
@@ -81,22 +90,29 @@ def get_datadict(
 
 
 class TrainDataset(Dataset):
-    def __init__(self, datadict, clip_len, sample_step):
-
+    def __init__(self, fusion_mode, clip_len, sample_step, datadict1,
+                 datadict2=None):
+        # fusion_mode:0-single feature; 1-early fusion; 2-late fusion
+        self.fusion_mode = fusion_mode
         self.clip_len = clip_len
         self.sample_step = sample_step
-
-        self.all_gts = datadict['all_gts']
-        self.gt_lens = datadict['gt_lens']
-        self.video_names = datadict['video_names']
-        self.frame_nums = datadict['frame_nums']
-        self.features = datadict['features']
-
+        self.all_gts = datadict1['all_gts']
+        self.gt_lens = datadict1['gt_lens']
+        self.video_names = datadict1['video_names']
+        self.frame_nums = datadict1['frame_nums']
         self.video_num = len(self.video_names)
 
-        for f in self.features:
-            if f.shape[1] < clip_len:
-                raise Exception('Clip Length Too Large.')
+        if fusion_mode == 0:
+            self.features = datadict1['features']
+        elif fusion_mode == 1:
+            self.features = []
+            for i in range(self.video_num):
+                self.features.append(np.concatenate([datadict1['features'][i],
+                                                     datadict2['features'][i]],
+                                                    axis=2))
+        else:
+            self.rgb_features = datadict1['features']
+            self.flow_features = datadict2['features']
 
     def __len__(self):
         return 100000
@@ -109,7 +125,11 @@ class TrainDataset(Dataset):
         gt_len = self.gt_lens[video_idx]
         video_name = self.video_names[video_idx]
         frame_num = self.frame_nums[video_idx]
-        feature = self.features[video_idx]
+        if self.fusion_mode == 0 or self.fusion_mode == 1:
+            feature = self.features[video_idx]
+        else:
+            feature = self.rgb_features[video_idx]
+            feature2 = self.flow_features[video_idx]
 
         feature_start = random.randint(0, feature.shape[1] - self.clip_len)
         feature_end = feature_start + self.clip_len
@@ -123,35 +143,48 @@ class TrainDataset(Dataset):
         return_dict['gt_len'] = gt_len
         return_dict['video_name'] = video_name
         return_dict['frame_num'] = frame_num
-        return_dict['feature'] = random.choice(
-            [i for i in feature[:, feature_start:feature_end, :]])
-
-        assert (return_dict['feature'].shape[0] == self.clip_len)
+        return_dict['fusion_mode'] = self.fusion_mode
+        if self.fusion_mode == 0 or self.fusion_mode == 1:
+            return_dict['feature'] = random.choice(
+                [i for i in feature[:, feature_start:feature_end, :]])
+            assert (return_dict['feature'].shape[0] == self.clip_len)
+        else:
+            return_dict['rgb_feature'] = random.choice(
+                [i for i in feature[:, feature_start:feature_end, :]])
+            return_dict['flow_feature'] = random.choice(
+                [i for i in feature2[:, feature_start:feature_end, :]])
+            assert (return_dict['rgb_feature'].shape[0] == self.clip_len)
 
         for key in all_gt.keys():
             return_dict[key] = all_gt[key][gt_start:gt_end, :]
-
             assert (return_dict[key].shape[0] == self.clip_len * self.sample_step)
 
         return return_dict
 
 
 class TestDataset(Dataset):
-    def __init__(self, datadict, clip_len):
+    def __init__(self, fusion_mode, clip_len, datadict1, datadict2=None):
 
+        self.fusion_mode = fusion_mode
         self.clip_len = clip_len
 
-        self.all_gts = datadict['all_gts']
-        self.gt_lens = datadict['gt_lens']
-        self.video_names = datadict['video_names']
-        self.frame_nums = datadict['frame_nums']
-        self.features = datadict['features']
-
+        self.all_gts = datadict1['all_gts']
+        self.gt_lens = datadict1['gt_lens']
+        self.video_names = datadict1['video_names']
+        self.frame_nums = datadict1['frame_nums']
         self.video_num = len(self.video_names)
 
-        for f in self.features:
-            if f.shape[1] < clip_len:
-                raise Exception('Clip Length Too Large.')
+        if fusion_mode == 0:
+            self.features = datadict1['features']
+        elif fusion_mode == 1:
+            self.features = []
+            for i in range(self.video_num):
+                self.features.append(np.concatenate([datadict1['features'][i],
+                                                     datadict2['features'][i]],
+                                                     axis=2))
+        else:
+            self.rgb_features = datadict1['features']
+            self.flow_features = datadict2['features']
 
     def __len__(self):
         return self.video_num
@@ -162,7 +195,12 @@ class TestDataset(Dataset):
         return_dict['gt_len'] = self.gt_lens[idx]
         return_dict['video_name'] = self.video_names[idx]
         return_dict['frame_num'] = self.frame_nums[idx]
-        return_dict['feature'] = self.features[idx]
+        return_dict['fusion_mode'] = self.fusion_mode
+        if self.fusion_mode == 0 or self.fusion_mode == 1:
+            return_dict['feature'] = self.features[idx]
+        else:
+            return_dict['rgb_feature'] = self.rgb_features[idx]
+            return_dict['flow_feature'] = self.flow_features[idx]
 
         for key in self.all_gts[idx].keys():
             return_dict[key] = self.all_gts[idx][key]
