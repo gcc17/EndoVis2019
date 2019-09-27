@@ -11,14 +11,14 @@ rgb, rgb_oversample_4, rgb_oversample_4_norm
 (resnet remains to test)
 
 fusion_mode:
-0 - rgb/flow single feature file
-1 - rgb and flow early fusion
-2 - rgb and flow late fusion
-3 - resnet
-4 - resnet and rgb early fusion
-5 - resnet and rgb late fusion
-6 - resnet and flow early fusion
-7 - resnet and flow late fusion
+0 - rgb/flow single feature file;
+1 - rgb and flow early fusion;
+2 - rgb and flow late fusion;
+3 - resnet;
+4 - resnet and rgb early fusion;
+5 - resnet and rgb late fusion;
+6 - resnet and flow early fusion;
+7 - resnet and flow late fusion;
 
 concurrence_weight: action and instrument inside class dependency parameter: model prediction = net output*(identity matrix + concurrence_matrix * concurrence_weight)
 
